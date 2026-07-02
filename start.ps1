@@ -1,10 +1,26 @@
 <#
 .SYNOPSIS
-start.ps1 - Virtual Queue Application Startup Script
+start.ps1 - Virtual Queue Application Startup Script (Goated Edition)
 
 .DESCRIPTION
-This script ensures Java 21, Maven, and MySQL are installed before running the Spring Boot application on Windows.
+This script ensures Java 21, Maven, and MySQL are installed before running the Spring Boot application on Windows. 
+It assumes a FRESH Windows 11 install, automatically elevates to Administrator, installs missing dependencies via winget,
+locates them, initializes MySQL if needed, and starts the app.
 #>
+
+# 1. Self-Elevate to Administrator
+if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Host "This script needs Administrator privileges to install dependencies and configure MySQL." -ForegroundColor Yellow
+    Write-Host "Restarting as Administrator..." -ForegroundColor Cyan
+    try {
+        Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+        Exit
+    } catch {
+        Write-Host "Failed to elevate privileges. Please right-click and run as Administrator." -ForegroundColor Red
+        Pause
+        Exit
+    }
+}
 
 function Pause-Exit {
     Write-Host "`nPress Enter to exit..." -ForegroundColor Yellow
@@ -12,117 +28,111 @@ function Pause-Exit {
     Exit
 }
 
+function Refresh-EnvPath {
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+}
+
 Write-Host "===========================================" -ForegroundColor Cyan
 Write-Host "Virtual Queue - System Check & Start Script" -ForegroundColor Cyan
 Write-Host "===========================================" -ForegroundColor Cyan
 
-# Function to check if a command exists
-function Test-CommandExists {
-    param ($command)
-    $null = Get-Command $command -ErrorAction SilentlyContinue
-    return $?
-}
-
-$installJava = $false
-$installMaven = $false
-
-# Check for Java
-Write-Host "Checking for Java 21..."
-if (Test-CommandExists "java") {
-    $javaVersionOutput = & java -version 2>&1
-    $javaVersion = ($javaVersionOutput | Select-String -Pattern 'version "([^"]+)"').Matches.Groups[1].Value
-    Write-Host "Found Java version: $javaVersion" -ForegroundColor Green
-    if ($javaVersion -notmatch "^21\.") {
-        Write-Host "Java version is not 21. Will attempt to install Java 21..." -ForegroundColor Yellow
-        $installJava = $true
+# 2. Check and Install Java 21
+Write-Host "`n[1/4] Checking for Java 21..." -ForegroundColor Cyan
+Refresh-EnvPath
+if (Get-Command "java" -ErrorAction SilentlyContinue) {
+    $javaVer = (& java -version 2>&1 | Select-String -Pattern 'version "([^"]+)"').Matches.Groups[1].Value
+    if ($javaVer -notmatch "^21\.") {
+        Write-Host "Found Java $javaVer, but require Java 21. Installing..." -ForegroundColor Yellow
+        winget install --id Microsoft.OpenJDK.21 -e --silent --accept-package-agreements --accept-source-agreements
     } else {
-        Write-Host "Java 21 is installed." -ForegroundColor Green
+        Write-Host "Java 21 is already installed." -ForegroundColor Green
     }
 } else {
-    Write-Host "Java is not installed. Will attempt to install Java 21..." -ForegroundColor Yellow
-    $installJava = $true
+    Write-Host "Java not found. Installing Java 21..." -ForegroundColor Yellow
+    winget install --id Microsoft.OpenJDK.21 -e --silent --accept-package-agreements --accept-source-agreements
 }
 
-# Install Java if needed
-if ($installJava) {
-    if (Test-CommandExists "winget") {
-        Write-Host "Installing Microsoft OpenJDK 21 via winget..." -ForegroundColor Cyan
-        winget install --id Microsoft.OpenJDK.21 --source winget --accept-package-agreements --accept-source-agreements
-        # Refresh environment variables
-        $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-    } else {
-        Write-Host "winget is not installed. Please install Java 21 manually from https://learn.microsoft.com/en-us/java/openjdk/download" -ForegroundColor Red
-        Pause-Exit
-    }
-}
-
-# Check for Maven
-Write-Host "Checking for Maven..."
-if (Test-CommandExists "mvn") {
-    Write-Host "Maven is installed." -ForegroundColor Green
+# 3. Check and Install Maven
+Write-Host "`n[2/4] Checking for Maven..." -ForegroundColor Cyan
+Refresh-EnvPath
+if (-not (Get-Command "mvn" -ErrorAction SilentlyContinue)) {
+    Write-Host "Maven not found. Installing Maven..." -ForegroundColor Yellow
+    winget install --id Apache.Maven -e --silent --accept-package-agreements --accept-source-agreements
 } else {
-    Write-Host "Maven is not installed. Will attempt to install Maven..." -ForegroundColor Yellow
-    $installMaven = $true
+    Write-Host "Maven is already installed." -ForegroundColor Green
 }
 
-# Install Maven if needed
-if ($installMaven) {
-    if (Test-CommandExists "winget") {
-        Write-Host "Installing Maven via winget..." -ForegroundColor Cyan
-        winget install --id Apache.Maven --source winget --accept-package-agreements --accept-source-agreements
-        # Refresh environment variables
-        $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-    } else {
-        Write-Host "winget is not installed. Please install Maven manually from https://maven.apache.org/download.cgi" -ForegroundColor Red
-        Pause-Exit
-    }
-}
+# 4. Check and Install MySQL
+Write-Host "`n[3/4] Checking for MySQL..." -ForegroundColor Cyan
+Refresh-EnvPath
+$mysqlInstalled = Get-Command "mysql" -ErrorAction SilentlyContinue
 
-Write-Host "Checking for MySQL Server..." -ForegroundColor Cyan
-if (-not (Test-CommandExists "mysql")) {
-    Write-Host "MySQL is not installed. Attempting to install MySQL Server via winget..." -ForegroundColor Yellow
-    if (Test-CommandExists "winget") {
-        winget install --id Oracle.MySQL --silent --accept-package-agreements --accept-source-agreements
-        $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+if (-not $mysqlInstalled) {
+    Write-Host "MySQL not found in PATH. Checking default installation directories..." -ForegroundColor Yellow
+    $mysqlBin = (Get-ChildItem -Path "C:\Program Files\MySQL" -Filter "mysql.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).DirectoryName
+    
+    if ($null -eq $mysqlBin) {
+        Write-Host "MySQL not installed. Installing MySQL Server via winget..." -ForegroundColor Yellow
+        winget install --id Oracle.MySQL -e --silent --accept-package-agreements --accept-source-agreements
         
-        # In Windows, MySQL usually starts automatically as a service (e.g. MySQL80).
-        # We give it a few seconds to initialize.
-        Start-Sleep -Seconds 10
-    } else {
-        Write-Host "winget is not installed. Please install MySQL manually." -ForegroundColor Red
-        Pause-Exit
+        Write-Host "Searching for installed MySQL..." -ForegroundColor Cyan
+        $mysqlBin = (Get-ChildItem -Path "C:\Program Files\MySQL" -Filter "mysql.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).DirectoryName
     }
-}
 
-Write-Host "Configuring MySQL Database and User..." -ForegroundColor Cyan
-if (Test-CommandExists "mysql") {
-    # Default MySQL installation on Windows without root password can be accessed directly
-    try {
-        mysql -u root -e "CREATE DATABASE IF NOT EXISTS virtualqueue;"
-        mysql -u root -e "CREATE USER IF NOT EXISTS 'vqadmin'@'localhost' IDENTIFIED BY 'vqpassword';"
-        mysql -u root -e "GRANT ALL PRIVILEGES ON virtualqueue.* TO 'vqadmin'@'localhost';"
-        mysql -u root -e "FLUSH PRIVILEGES;"
-        Write-Host "MySQL configured successfully." -ForegroundColor Green
-    } catch {
-        Write-Host "Failed to configure MySQL automatically. You might need to set it up manually or provide the root password if you set one." -ForegroundColor Red
-        Write-Host "Run: mysql -u root -p -e `"CREATE DATABASE virtualqueue; CREATE USER 'vqadmin'@'localhost' IDENTIFIED BY 'vqpassword'; GRANT ALL PRIVILEGES ON virtualqueue.* TO 'vqadmin'@'localhost'; FLUSH PRIVILEGES;`"" -ForegroundColor Yellow
+    if ($null -ne $mysqlBin) {
+        Write-Host "Found MySQL at $mysqlBin. Adding to PATH..." -ForegroundColor Green
+        $machinePath = [System.Environment]::GetEnvironmentVariable("Path","Machine")
+        [System.Environment]::SetEnvironmentVariable("Path", $machinePath + ";$mysqlBin", "Machine")
+        Refresh-EnvPath
+    } else {
+        Write-Host "Failed to locate MySQL after installation. Please install manually." -ForegroundColor Red
         Pause-Exit
     }
 } else {
-    Write-Host "MySQL command not found in PATH even after installation attempt. Please restart your terminal or configure manually." -ForegroundColor Yellow
-    Pause-Exit
+    Write-Host "MySQL is already installed." -ForegroundColor Green
 }
 
-Write-Host "Starting Spring Boot in the background..." -ForegroundColor Cyan
+# Ensure MySQL Service is initialized and running
+$mysqldPath = (Get-ChildItem -Path "C:\Program Files\MySQL" -Filter "mysqld.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+if ($null -ne $mysqldPath) {
+    $service = Get-Service -Name "MySQL*" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $service) {
+        Write-Host "MySQL service not found. Initializing data directory (no root password)..." -ForegroundColor Yellow
+        & $mysqldPath --initialize-insecure --console
+        Write-Host "Installing MySQL service..." -ForegroundColor Yellow
+        & $mysqldPath --install MySQL
+        $service = Get-Service -Name "MySQL" -ErrorAction SilentlyContinue
+    }
+    
+    if ($service.Status -ne 'Running') {
+        Write-Host "Starting MySQL Service..." -ForegroundColor Yellow
+        Start-Service -Name $service.Name
+    }
+}
 
+# Configure Database
+Write-Host "Configuring MySQL Database..." -ForegroundColor Cyan
+try {
+    # Assuming root has no password (fresh install via our script)
+    mysql -u root -e "CREATE DATABASE IF NOT EXISTS virtualqueue;" 2>$null
+    mysql -u root -e "CREATE USER IF NOT EXISTS 'vqadmin'@'localhost' IDENTIFIED BY 'vqpassword';" 2>$null
+    mysql -u root -e "GRANT ALL PRIVILEGES ON virtualqueue.* TO 'vqadmin'@'localhost';" 2>$null
+    mysql -u root -e "FLUSH PRIVILEGES;" 2>$null
+    Write-Host "Database configured successfully." -ForegroundColor Green
+} catch {
+    Write-Host "Failed to configure database. If you set a root password manually, run this in MySQL:" -ForegroundColor Red
+    Write-Host "CREATE DATABASE virtualqueue; CREATE USER 'vqadmin'@'localhost' IDENTIFIED BY 'vqpassword'; GRANT ALL PRIVILEGES ON virtualqueue.* TO 'vqadmin'@'localhost'; FLUSH PRIVILEGES;" -ForegroundColor Yellow
+}
+
+# 5. Start Spring Boot
+Write-Host "`n[4/4] Starting Spring Boot in the background..." -ForegroundColor Cyan
 if (Test-Path ".\mvnw.cmd") {
     Start-Process -FilePath ".\mvnw.cmd" -ArgumentList "spring-boot:run" -WindowStyle Hidden -RedirectStandardOutput "virtualqueue.log" -RedirectStandardError "virtualqueue.log"
 } else {
     Start-Process -FilePath "mvn" -ArgumentList "spring-boot:run" -WindowStyle Hidden -RedirectStandardOutput "virtualqueue.log" -RedirectStandardError "virtualqueue.log"
 }
 
-Write-Host "Waiting for application to start (this might take a few seconds)..." -ForegroundColor Yellow
-
+Write-Host "Waiting for application to start (this might take up to 60 seconds)..." -ForegroundColor Yellow
 $timeout = 60
 $counter = 0
 while ($counter -lt $timeout) {
@@ -157,5 +167,4 @@ Write-Host "✅ Application is running in the background." -ForegroundColor Gree
 Write-Host "ℹ️ You can now safely close this terminal." -ForegroundColor Cyan
 Write-Host "🛑 To stop the server later, run: .\stop.ps1`n" -ForegroundColor Yellow
 
-Write-Host "Press Enter to close this window..." -ForegroundColor DarkGray
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+Pause-Exit
