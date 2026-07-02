@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments :: head('Today\'s Queue')}"></head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen flex flex-col md:flex-row">
+
+    <!-- Sidebar -->
+    <aside class="w-full md:w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex-col hidden md:flex">
+        <div class="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-700">
+            <i class="bi bi-heart-pulse-fill text-primary text-xl mr-2"></i>
+            <span class="text-lg font-bold">VirtualQueue</span>
+        </div>
+        <nav class="flex-grow py-4 px-3 space-y-1">
+            <a th:href="@{/doctor/dashboard}" class="flex items-center px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors">
+                <i class="bi bi-grid-1x2-fill mr-3"></i> Dashboard
+            </a>
+            <a th:href="@{/doctor/queue}" class="flex items-center px-3 py-2 text-primary bg-primary/10 rounded-lg font-medium">
+                <i class="bi bi-list-ol mr-3"></i> Today's Queue
+            </a>
+        </nav>
+        <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="flex items-center w-full px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg font-medium transition-colors">
+                    <i class="bi bi-box-arrow-right mr-3"></i> Logout
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <!-- Mobile Nav Header -->
+    <div class="md:hidden flex items-center justify-between p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex items-center">
+            <i class="bi bi-heart-pulse-fill text-primary text-xl mr-2"></i>
+            <span class="text-lg font-bold">VirtualQueue</span>
+        </div>
+        <form th:action="@{/logout}" method="post">
+            <button type="submit" class="text-red-500"><i class="bi bi-box-arrow-right text-xl"></i></button>
+        </form>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <header class="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 hidden md:flex items-center justify-between px-6">
+            <h1 class="text-xl font-semibold">Today's Queue</h1>
+            <div class="flex items-center space-x-4">
+                <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <i class="bi bi-moon"></i>
+                </button>
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">
+                        Dr
+                    </div>
+                    <span class="ml-2 font-medium text-sm hidden sm:block" sec:authentication="name">Doctor</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-4 md:p-6">
+            <div class="card p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-lg font-bold">Live Patient Queue</h2>
+                    <form th:action="@{/doctor/queue/next}" method="post">
+                        <button type="submit" class="btn-primary py-2 px-4 text-sm"><i class="bi bi-megaphone-fill mr-2"></i>Call Next</button>
+                    </form>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="text-sm text-gray-500 border-b border-gray-200 dark:border-gray-700">
+                                <th class="pb-3 font-medium w-16">Q No.</th>
+                                <th class="pb-3 font-medium">Patient Name</th>
+                                <th class="pb-3 font-medium">Time Slot</th>
+                                <th class="pb-3 font-medium">Type</th>
+                                <th class="pb-3 font-medium">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm">
+                            <tr th:if="${#lists.isEmpty(queueList)}">
+                                <td colspan="5" class="py-6 text-center text-gray-500">No patients in queue today.</td>
+                            </tr>
+                            <tr th:each="q : ${queueList}" class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors" th:classappend="${q.status == 'IN_PROGRESS'} ? 'bg-blue-50 dark:bg-blue-900/20'">
+                                <td class="py-4">
+                                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold"
+                                         th:classappend="${q.status == 'WAITING' ? 'bg-orange-100 text-orange-700' : (q.status == 'IN_PROGRESS' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/40' : 'bg-green-100 text-green-700')}">
+                                        <span th:text="${q.queueNumber}">1</span>
+                                    </div>
+                                </td>
+                                <td class="py-4 font-medium" th:text="${q.appointment.patient.firstName + ' ' + q.appointment.patient.lastName}">Jane Smith</td>
+                                <td class="py-4 text-gray-500" th:text="${q.appointment.timeSlot}">10:30 AM</td>
+                                <td class="py-4">
+                                    <span th:if="${q.priorityLevel == 'EMERGENCY'}" class="text-red-500 font-medium"><i class="bi bi-exclamation-triangle-fill mr-1"></i>Emergency</span>
+                                    <span th:if="${q.priorityLevel != 'EMERGENCY'}" class="text-gray-500">Normal</span>
+                                </td>
+                                <td class="py-4">
+                                    <span th:if="${q.status == 'WAITING'}" class="px-2 py-1 bg-orange-100 text-orange-700 rounded-md text-xs font-medium">Waiting</span>
+                                    <span th:if="${q.status == 'IN_PROGRESS'}" class="px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-medium border border-blue-200">In Progress</span>
+                                    <span th:if="${q.status == 'COMPLETED'}" class="px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium">Completed</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+</body>
+</html>
