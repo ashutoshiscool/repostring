@@ -3,8 +3,14 @@
 start.ps1 - Virtual Queue Application Startup Script
 
 .DESCRIPTION
-This script ensures Java 21 and Maven are installed before running the Spring Boot application on Windows.
+This script ensures Java 21, Maven, and MySQL are installed before running the Spring Boot application on Windows.
 #>
+
+function Pause-Exit {
+    Write-Host "`nPress Enter to exit..." -ForegroundColor Yellow
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    Exit
+}
 
 Write-Host "===========================================" -ForegroundColor Cyan
 Write-Host "Virtual Queue - System Check & Start Script" -ForegroundColor Cyan
@@ -46,7 +52,7 @@ if ($installJava) {
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
     } else {
         Write-Host "winget is not installed. Please install Java 21 manually from https://learn.microsoft.com/en-us/java/openjdk/download" -ForegroundColor Red
-        Exit
+        Pause-Exit
     }
 }
 
@@ -68,24 +74,47 @@ if ($installMaven) {
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
     } else {
         Write-Host "winget is not installed. Please install Maven manually from https://maven.apache.org/download.cgi" -ForegroundColor Red
-        Exit
+        Pause-Exit
+    }
+}
+
+Write-Host "Checking for MySQL Server..." -ForegroundColor Cyan
+if (-not (Test-CommandExists "mysql")) {
+    Write-Host "MySQL is not installed. Attempting to install MySQL Server via winget..." -ForegroundColor Yellow
+    if (Test-CommandExists "winget") {
+        winget install --id Oracle.MySQL --silent --accept-package-agreements --accept-source-agreements
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+        
+        # In Windows, MySQL usually starts automatically as a service (e.g. MySQL80).
+        # We give it a few seconds to initialize.
+        Start-Sleep -Seconds 10
+    } else {
+        Write-Host "winget is not installed. Please install MySQL manually." -ForegroundColor Red
+        Pause-Exit
     }
 }
 
 Write-Host "Configuring MySQL Database and User..." -ForegroundColor Cyan
 if (Test-CommandExists "mysql") {
-    mysql -u root -e "CREATE DATABASE IF NOT EXISTS virtualqueue;"
-    mysql -u root -e "CREATE USER IF NOT EXISTS 'vqadmin'@'localhost' IDENTIFIED BY 'vqpassword';"
-    mysql -u root -e "GRANT ALL PRIVILEGES ON virtualqueue.* TO 'vqadmin'@'localhost';"
-    mysql -u root -e "FLUSH PRIVILEGES;"
-    Write-Host "MySQL configured successfully." -ForegroundColor Green
+    # Default MySQL installation on Windows without root password can be accessed directly
+    try {
+        mysql -u root -e "CREATE DATABASE IF NOT EXISTS virtualqueue;"
+        mysql -u root -e "CREATE USER IF NOT EXISTS 'vqadmin'@'localhost' IDENTIFIED BY 'vqpassword';"
+        mysql -u root -e "GRANT ALL PRIVILEGES ON virtualqueue.* TO 'vqadmin'@'localhost';"
+        mysql -u root -e "FLUSH PRIVILEGES;"
+        Write-Host "MySQL configured successfully." -ForegroundColor Green
+    } catch {
+        Write-Host "Failed to configure MySQL automatically. You might need to set it up manually or provide the root password if you set one." -ForegroundColor Red
+        Write-Host "Run: mysql -u root -p -e `"CREATE DATABASE virtualqueue; CREATE USER 'vqadmin'@'localhost' IDENTIFIED BY 'vqpassword'; GRANT ALL PRIVILEGES ON virtualqueue.* TO 'vqadmin'@'localhost'; FLUSH PRIVILEGES;`"" -ForegroundColor Yellow
+        Pause-Exit
+    }
 } else {
-    Write-Host "MySQL command not found. Please ensure MySQL is installed and in your PATH, and manually create the 'virtualqueue' database." -ForegroundColor Yellow
+    Write-Host "MySQL command not found in PATH even after installation attempt. Please restart your terminal or configure manually." -ForegroundColor Yellow
+    Pause-Exit
 }
 
 Write-Host "Starting Spring Boot in the background..." -ForegroundColor Cyan
 
-# Use maven wrapper if it exists, otherwise fallback to mvn
 if (Test-Path ".\mvnw.cmd") {
     Start-Process -FilePath ".\mvnw.cmd" -ArgumentList "spring-boot:run" -WindowStyle Hidden -RedirectStandardOutput "virtualqueue.log" -RedirectStandardError "virtualqueue.log"
 } else {
@@ -94,17 +123,25 @@ if (Test-Path ".\mvnw.cmd") {
 
 Write-Host "Waiting for application to start (this might take a few seconds)..." -ForegroundColor Yellow
 
-# Wait for the server to start on port 8080
-while ($true) {
+$timeout = 60
+$counter = 0
+while ($counter -lt $timeout) {
     $tcp = New-Object System.Net.Sockets.TcpClient
     try {
         $tcp.Connect("127.0.0.1", 8080)
         break
     } catch {
         Start-Sleep -Seconds 2
+        $counter += 2
     } finally {
         if ($tcp -ne $null) { $tcp.Dispose() }
     }
+}
+
+if ($counter -ge $timeout) {
+    Write-Host "Error: The application failed to start on port 8080 within 60 seconds." -ForegroundColor Red
+    Write-Host "Please check 'virtualqueue.log' for details." -ForegroundColor Yellow
+    Pause-Exit
 }
 
 Write-Host "`n=======================================================" -ForegroundColor Cyan
@@ -116,6 +153,9 @@ Write-Host "  - Admin:   admin@hospital.com / admin123"
 Write-Host "  - Doctor:  sanjay.thapa@rajdhanihealthline.com / doctor123"
 Write-Host "  - Patient: [firstname].[lastname]1@gmail.com / patient123 (e.g. aarav.sharma1@gmail.com)"
 Write-Host "=======================================================" -ForegroundColor Cyan
-Write-Host " Application is running in the background." -ForegroundColor Green
-Write-Host "ℹ  You can now safely close this terminal." -ForegroundColor Cyan
-Write-Host "To stop the server later, run: .\stop.ps1`n" -ForegroundColor Yellow
+Write-Host "✅ Application is running in the background." -ForegroundColor Green
+Write-Host "ℹ️ You can now safely close this terminal." -ForegroundColor Cyan
+Write-Host "🛑 To stop the server later, run: .\stop.ps1`n" -ForegroundColor Yellow
+
+Write-Host "Press Enter to close this window..." -ForegroundColor DarkGray
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
