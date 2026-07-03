@@ -19,6 +19,12 @@
             <a th:href="@{/admin/patients}" class="flex items-center px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors">
                 <i class="bi bi-people mr-3"></i> Manage Patients
             </a>
+            <a th:href="@{/admin/appointments}" class="flex items-center px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors">
+                <i class="bi bi-calendar-event mr-3"></i> Appointments
+            </a>
+            <a th:href="@{/admin/queues}" class="flex items-center px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors">
+                <i class="bi bi-list-ol mr-3"></i> Live Queues
+            </a>
         </nav>
         <div class="p-4 border-t border-gray-200 dark:border-gray-700">
             <form th:action="@{/logout}" method="post">

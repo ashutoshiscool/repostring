@@ -7,8 +7,8 @@ import java.util.List;
 
 public interface QueueRepository extends JpaRepository<Queue, Long> {
     List<Queue> findByStatus(String status);
-    List<Queue> findAllByOrderByQueueNumberAsc();
+    List<Queue> findAllByOrderByPriorityScoreDescQueueNumberAsc();
     long countByAppointmentDoctorAndStatus(com.rajdhani.vqda.model.Doctor doctor, String status);
-    java.util.Optional<Queue> findFirstByAppointmentDoctorAndStatusOrderByQueueNumberAsc(com.rajdhani.vqda.model.Doctor doctor, String status);
-    List<Queue> findByAppointmentDoctorOrderByQueueNumberAsc(com.rajdhani.vqda.model.Doctor doctor);
+    java.util.Optional<Queue> findFirstByAppointmentDoctorAndStatusOrderByPriorityScoreDescQueueNumberAsc(com.rajdhani.vqda.model.Doctor doctor, String status);
+    List<Queue> findByAppointmentDoctorOrderByPriorityScoreDescQueueNumberAsc(com.rajdhani.vqda.model.Doctor doctor);
 }

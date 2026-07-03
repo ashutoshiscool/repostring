@@ -95,10 +95,16 @@
                                 <td class="py-4 text-gray-600 dark:text-gray-400 max-w-[200px] truncate" th:text="${app.reason}">
                                     Regular checkup
                                 </td>
-                                <td class="py-4 text-right">
+                                <td class="py-4 text-right flex justify-end items-center space-x-2">
                                     <span th:if="${app.status == 'CONFIRMED'}" class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium border border-green-200"><i class="bi bi-check-circle mr-1"></i>Confirmed</span>
                                     <span th:if="${app.status == 'COMPLETED'}" class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium border border-gray-200">Completed</span>
                                     <span th:if="${app.status == 'CANCELLED'}" class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium border border-red-200">Cancelled</span>
+                                    
+                                    <a th:if="${app.status == 'CONFIRMED'}" th:href="@{/patient/appointment/{id}/reschedule(id=${app.id})}" class="text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded transition-colors text-xs ml-2">Reschedule</a>
+
+                                    <form th:if="${app.status == 'CONFIRMED'}" th:action="@{/patient/appointment/{id}/cancel(id=${app.id})}" method="post" onsubmit="return confirm('Are you sure you want to cancel this appointment?');">
+                                        <button type="submit" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition-colors text-xs ml-2">Cancel</button>
+                                    </form>
                                 </td>
                             </tr>
                         </tbody>

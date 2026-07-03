@@ -41,4 +41,7 @@ public class Queue {
     
     @Column(name = "actual_end_time")
     private LocalDateTime actualEndTime;
+    
+    @Column(name = "priority_score")
+    private Integer priorityScore = 0; // Higher is higher priority (e.g. 1 for Emergency, 0 for Normal)
 }

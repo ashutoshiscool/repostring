@@ -31,6 +31,12 @@
         <header class="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-6">
             <h1 class="text-xl font-semibold">Doctor Portal</h1>
             <div class="flex items-center space-x-4">
+                <form th:action="@{/doctor/availability}" method="post" class="flex items-center">
+                    <span class="mr-2 text-sm font-medium" th:text="${doctor != null && doctor.availabilityStatus ? 'Available' : 'Unavailable'}">Availability:</span>
+                    <button type="submit" class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors" th:classappend="${doctor != null && doctor.availabilityStatus ? 'bg-green-500' : 'bg-gray-300'}" title="Toggle Availability">
+                        <span class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform" th:classappend="${doctor != null && doctor.availabilityStatus ? 'translate-x-6' : 'translate-x-1'}"></span>
+                    </button>
+                </form>
                 <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
                     <i class="bi bi-moon"></i>
                 </button>

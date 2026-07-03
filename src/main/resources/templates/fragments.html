@@ -21,10 +21,45 @@
     </script>
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Toastify CSS -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <!-- Custom CSS -->
     <link rel="stylesheet" th:href="@{/css/main.css}">
     <!-- Theme JS -->
     <script th:src="@{/js/theme.js}" defer></script>
+    <!-- Table Search JS -->
+    <script th:src="@{/js/table-search.js}" defer></script>
+    <!-- Toastify JS -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <!-- Notifications Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('success')) {
+                let msg = urlParams.get('success');
+                if (msg === 'deleted') msg = 'Successfully deleted record.';
+                if (msg === 'availability_updated') msg = 'Availability updated successfully.';
+                Toastify({
+                    text: msg || "Success!",
+                    duration: 3000,
+                    close: true,
+                    gravity: "top", 
+                    position: "right",
+                    style: { background: "linear-gradient(to right, #00b09b, #96c93d)" }
+                }).showToast();
+            }
+            if (urlParams.has('error')) {
+                Toastify({
+                    text: urlParams.get('error') || "An error occurred.",
+                    duration: 3000,
+                    close: true,
+                    gravity: "top", 
+                    position: "right",
+                    style: { background: "linear-gradient(to right, #ff5f6d, #ffc371)" }
+                }).showToast();
+            }
+        });
+    </script>
 </head>
 <body>
     <nav th:fragment="navbar" class="glass-panel sticky top-0 z-50 px-6 py-4 flex justify-between items-center">

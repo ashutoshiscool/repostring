@@ -41,18 +41,18 @@ public class QueueApiController {
                 if (!apps.isEmpty()) {
                     com.rajdhani.vqda.model.Appointment latestApp = apps.get(0);
                     // Check if there is an active queue for this appointment
-                    java.util.Optional<com.rajdhani.vqda.model.Queue> qOpt = queueRepository.findFirstByAppointmentDoctorAndStatusOrderByQueueNumberAsc(latestApp.getDoctor(), "WAITING");
+                    java.util.Optional<com.rajdhani.vqda.model.Queue> qOpt = queueRepository.findFirstByAppointmentDoctorAndStatusOrderByPriorityScoreDescQueueNumberAsc(latestApp.getDoctor(), "WAITING");
                     
                     // Actually, we want to know the *patient's* position in the queue
                     // First let's find the patient's queue entry
-                    java.util.Optional<com.rajdhani.vqda.model.Queue> patientQueueOpt = queueRepository.findByAppointmentDoctorOrderByQueueNumberAsc(latestApp.getDoctor())
+                    java.util.Optional<com.rajdhani.vqda.model.Queue> patientQueueOpt = queueRepository.findByAppointmentDoctorOrderByPriorityScoreDescQueueNumberAsc(latestApp.getDoctor())
                         .stream().filter(q -> q.getAppointment().getPatient().getId().equals(patient.getId()) && !q.getStatus().equals("COMPLETED")).findFirst();
                     
                     if (patientQueueOpt.isPresent()) {
                         com.rajdhani.vqda.model.Queue patientQueue = patientQueueOpt.get();
                         
                         // How many are currently waiting before this patient?
-                        long ahead = queueRepository.findByAppointmentDoctorOrderByQueueNumberAsc(latestApp.getDoctor())
+                        long ahead = queueRepository.findByAppointmentDoctorOrderByPriorityScoreDescQueueNumberAsc(latestApp.getDoctor())
                                 .stream().filter(q -> q.getStatus().equals("WAITING") && q.getQueueNumber() < patientQueue.getQueueNumber()).count();
                         
                         response.put("status", patientQueue.getStatus());

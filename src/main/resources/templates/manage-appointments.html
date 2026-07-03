@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head th:replace="~{fragments :: head('Manage Doctors')}"></head>
+<head th:replace="~{fragments :: head('Manage Appointments')}"></head>
 <body class="bg-gray-50 dark:bg-gray-900 min-h-screen flex">
 
     <!-- Sidebar -->
@@ -13,13 +13,13 @@
             <a th:href="@{/admin/dashboard}" class="flex items-center px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors">
                 <i class="bi bi-grid-1x2-fill mr-3"></i> Dashboard
             </a>
-            <a th:href="@{/admin/doctors}" class="flex items-center px-3 py-2 text-primary bg-primary/10 rounded-lg font-medium">
+            <a th:href="@{/admin/doctors}" class="flex items-center px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors">
                 <i class="bi bi-person-badge mr-3"></i> Manage Doctors
             </a>
             <a th:href="@{/admin/patients}" class="flex items-center px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors">
                 <i class="bi bi-people mr-3"></i> Manage Patients
             </a>
-            <a th:href="@{/admin/appointments}" class="flex items-center px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors">
+            <a th:href="@{/admin/appointments}" class="flex items-center px-3 py-2 text-primary bg-primary/10 rounded-lg font-medium">
                 <i class="bi bi-calendar-event mr-3"></i> Appointments
             </a>
             <a th:href="@{/admin/queues}" class="flex items-center px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors">
@@ -37,9 +37,8 @@
 
     <!-- Main Content -->
     <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <!-- Top header -->
         <header class="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-6">
-            <h1 class="text-xl font-semibold">Manage Doctors</h1>
+            <h1 class="text-xl font-semibold">Manage Appointments</h1>
             <div class="flex items-center space-x-4">
                 <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
                     <i class="bi bi-moon"></i>
@@ -53,44 +52,53 @@
             </div>
         </header>
 
-        <!-- Main section -->
         <main class="flex-1 overflow-y-auto p-6">
             <div class="card p-6">
                 <div class="flex flex-col sm:flex-row justify-between items-center mb-6 space-y-4 sm:space-y-0">
-                    <h2 class="text-lg font-bold">All Doctors</h2>
+                    <h2 class="text-lg font-bold">All Appointments</h2>
                     <div class="flex items-center space-x-4">
                         <div class="relative">
                             <i class="bi bi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                            <input type="text" data-table-search="doctorsTable" placeholder="Search doctors..." class="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-64 transition-all">
+                            <input type="text" data-table-search="appointmentsTable" placeholder="Search appointments..." class="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-64 transition-all">
                         </div>
-                        <button class="btn-primary py-2 px-4 text-sm whitespace-nowrap"><i class="bi bi-plus-lg mr-2"></i>Add Doctor</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
-                    <table id="doctorsTable" class="w-full text-left border-collapse">
+                    <table id="appointmentsTable" class="w-full text-left border-collapse">
                         <thead>
                             <tr class="text-sm text-gray-500 border-b border-gray-200 dark:border-gray-700">
-                                <th class="pb-3 font-medium">Name</th>
-                                <th class="pb-3 font-medium">Email</th>
-                                <th class="pb-3 font-medium">Specialization</th>
-                                <th class="pb-3 font-medium">Phone</th>
-                                <th class="pb-3 font-medium">Experience</th>
+                                <th class="pb-3 font-medium">Date & Time</th>
+                                <th class="pb-3 font-medium">Patient</th>
+                                <th class="pb-3 font-medium">Doctor</th>
+                                <th class="pb-3 font-medium">Type</th>
+                                <th class="pb-3 font-medium">Status</th>
                                 <th class="pb-3 font-medium text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="text-sm">
-                            <tr th:if="${#lists.isEmpty(doctors)}">
-                                <td colspan="6" class="py-4 text-center text-gray-500">No doctors found.</td>
+                            <tr th:if="${#lists.isEmpty(appointments)}">
+                                <td colspan="6" class="py-4 text-center text-gray-500">No appointments found.</td>
                             </tr>
-                            <tr th:each="doctor : ${doctors}" class="border-b border-gray-100 dark:border-gray-800">
-                                <td class="py-3 font-medium" th:text="${'Dr. ' + doctor.firstName + ' ' + doctor.lastName}">Dr. Smith</td>
-                                <td class="py-3 text-gray-500 dark:text-gray-400" th:text="${doctor.user.email}">doc@mail.com</td>
-                                <td class="py-3" th:text="${doctor.specialization}">Cardiologist</td>
-                                <td class="py-3" th:text="${doctor.phone}">555-1234</td>
-                                <td class="py-3" th:text="${doctor.experienceYears + ' yrs'}">10 yrs</td>
-                                <td class="py-3 text-right flex justify-end space-x-2">
-                                    <form th:action="@{/admin/doctors/delete/{id}(id=${doctor.id})}" method="post" onsubmit="return confirm('Are you sure you want to delete this doctor?');">
-                                        <button type="submit" class="text-red-600 hover:text-red-800"><i class="bi bi-trash"></i></button>
+                            <tr th:each="appointment : ${appointments}" class="border-b border-gray-100 dark:border-gray-800">
+                                <td class="py-3">
+                                    <div class="font-medium" th:text="${appointment.appointmentDate}">2026-10-12</div>
+                                    <div class="text-gray-500 text-xs" th:text="${appointment.timeSlot}">10:30 AM</div>
+                                </td>
+                                <td class="py-3" th:text="${appointment.patient.firstName + ' ' + appointment.patient.lastName}">Jane Doe</td>
+                                <td class="py-3" th:text="${'Dr. ' + appointment.doctor.lastName}">Dr. Smith</td>
+                                <td class="py-3">
+                                    <span th:if="${appointment.type == 'EMERGENCY'}" class="px-2 py-1 bg-red-100 text-red-700 rounded-md text-xs font-medium">Emergency</span>
+                                    <span th:if="${appointment.type == 'NORMAL'}" class="px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-medium">Normal</span>
+                                </td>
+                                <td class="py-3">
+                                    <span th:if="${appointment.status == 'CONFIRMED'}" class="text-green-600 font-medium" th:text="${appointment.status}">CONFIRMED</span>
+                                    <span th:if="${appointment.status != 'CONFIRMED'}" class="text-gray-600" th:text="${appointment.status}">COMPLETED</span>
+                                </td>
+                                <td class="py-3 text-right flex justify-end items-center space-x-2">
+                                    <a th:if="${appointment.status != 'CANCELLED' and appointment.status != 'COMPLETED'}" th:href="@{/admin/appointments/{id}/reschedule(id=${appointment.id})}" class="text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded transition-colors text-xs mr-2">Reschedule</a>
+                                    
+                                    <form th:action="@{/admin/appointments/delete/{id}(id=${appointment.id})}" method="post" onsubmit="return confirm('Delete this appointment completely?');">
+                                        <button type="submit" class="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition-colors"><i class="bi bi-trash"></i></button>
                                     </form>
                                 </td>
                             </tr>

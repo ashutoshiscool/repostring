@@ -37,7 +37,7 @@ public class PatientController {
                     model.addAttribute("upcomingApp", apps.get(0));
                     
                     // See if they are in queue for this doc today
-                    com.rajdhani.vqda.model.Queue q = queueRepository.findFirstByAppointmentDoctorAndStatusOrderByQueueNumberAsc(apps.get(0).getDoctor(), "WAITING").orElse(null);
+                    com.rajdhani.vqda.model.Queue q = queueRepository.findFirstByAppointmentDoctorAndStatusOrderByPriorityScoreDescQueueNumberAsc(apps.get(0).getDoctor(), "WAITING").orElse(null);
                     if (q != null) {
                         model.addAttribute("queuePosition", q.getQueueNumber());
                         model.addAttribute("doctorName", "Dr. " + apps.get(0).getDoctor().getLastName());
@@ -110,9 +110,10 @@ public class PatientController {
             queue.setAppointment(appointment);
             queue.setStatus("WAITING");
             queue.setPriorityLevel(type);
+            queue.setPriorityScore("Emergency".equalsIgnoreCase(type) ? 1 : 0);
             
             // Generate queue number
-            java.util.List<com.rajdhani.vqda.model.Queue> docQueue = queueRepository.findByAppointmentDoctorOrderByQueueNumberAsc(doctor);
+            java.util.List<com.rajdhani.vqda.model.Queue> docQueue = queueRepository.findByAppointmentDoctorOrderByPriorityScoreDescQueueNumberAsc(doctor);
             int nextNum = 1;
             if (!docQueue.isEmpty()) {
                 nextNum = docQueue.get(docQueue.size() - 1).getQueueNumber() + 1;
@@ -138,5 +139,140 @@ public class PatientController {
             }
         }
         return "appointments";
+    }
+    @org.springframework.web.bind.annotation.PostMapping("/appointment/{id}/cancel")
+    public String cancelAppointment(@org.springframework.web.bind.annotation.PathVariable Long id, org.springframework.security.core.Authentication authentication) {
+        String email = authentication.getName();
+        com.rajdhani.vqda.model.User user = userRepository.findByEmail(email).orElse(null);
+        if (user != null) {
+            com.rajdhani.vqda.model.Patient patient = patientRepository.findByUser(user).orElse(null);
+            if (patient != null) {
+                com.rajdhani.vqda.model.Appointment appointment = appointmentRepository.findById(id).orElse(null);
+                if (appointment != null && appointment.getPatient().getId().equals(patient.getId())) {
+                    appointment.setStatus("CANCELLED");
+                    appointmentRepository.save(appointment);
+                    // Also cancel queue if it exists
+                    java.util.Optional<com.rajdhani.vqda.model.Queue> qOpt = queueRepository.findByAppointmentDoctorOrderByPriorityScoreDescQueueNumberAsc(appointment.getDoctor())
+                        .stream().filter(q -> q.getAppointment().getId().equals(id)).findFirst();
+                    if (qOpt.isPresent()) {
+                        com.rajdhani.vqda.model.Queue q = qOpt.get();
+                        q.setStatus("CANCELLED");
+                        queueRepository.save(q);
+                    }
+                }
+            }
+        }
+        return "redirect:/patient/appointments?success=cancelled";
+    }
+
+    @GetMapping("/appointment/{id}/reschedule")
+    public String rescheduleForm(@org.springframework.web.bind.annotation.PathVariable Long id, Model model, org.springframework.security.core.Authentication authentication) {
+        String email = authentication.getName();
+        com.rajdhani.vqda.model.User user = userRepository.findByEmail(email).orElse(null);
+        if (user != null) {
+            com.rajdhani.vqda.model.Patient patient = patientRepository.findByUser(user).orElse(null);
+            if (patient != null) {
+                com.rajdhani.vqda.model.Appointment appointment = appointmentRepository.findById(id).orElse(null);
+                if (appointment != null && appointment.getPatient().getId().equals(patient.getId()) && "CONFIRMED".equals(appointment.getStatus())) {
+                    model.addAttribute("patientName", patient.getFirstName());
+                    model.addAttribute("appointment", appointment);
+                    return "patient-reschedule";
+                }
+            }
+        }
+        return "redirect:/patient/appointments?error=InvalidAppointment";
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/appointment/{id}/reschedule")
+    public String submitReschedule(
+            @org.springframework.web.bind.annotation.PathVariable Long id,
+            @org.springframework.web.bind.annotation.RequestParam("appointmentDate") String appointmentDateStr,
+            @org.springframework.web.bind.annotation.RequestParam("timeSlot") String timeSlotStr,
+            org.springframework.security.core.Authentication authentication) {
+        
+        String email = authentication.getName();
+        com.rajdhani.vqda.model.User user = userRepository.findByEmail(email).orElse(null);
+        if (user != null) {
+            com.rajdhani.vqda.model.Patient patient = patientRepository.findByUser(user).orElse(null);
+            if (patient != null) {
+                com.rajdhani.vqda.model.Appointment appointment = appointmentRepository.findById(id).orElse(null);
+                if (appointment != null && appointment.getPatient().getId().equals(patient.getId())) {
+                    java.time.LocalDate newDate = java.time.LocalDate.parse(appointmentDateStr);
+                    java.time.LocalTime newTime = java.time.LocalTime.parse(timeSlotStr);
+                    
+                    appointment.setAppointmentDate(newDate);
+                    appointment.setTimeSlot(newTime);
+                    appointmentRepository.save(appointment);
+                    
+                    // Handle queue logic
+                    java.util.Optional<com.rajdhani.vqda.model.Queue> existingQueueOpt = queueRepository.findByAppointmentDoctorOrderByPriorityScoreDescQueueNumberAsc(appointment.getDoctor())
+                        .stream().filter(q -> q.getAppointment().getId().equals(id) && !"COMPLETED".equals(q.getStatus()) && !"CANCELLED".equals(q.getStatus())).findFirst();
+                    
+                    boolean isToday = newDate.equals(java.time.LocalDate.now());
+                    
+                    if (existingQueueOpt.isPresent()) {
+                        com.rajdhani.vqda.model.Queue existingQueue = existingQueueOpt.get();
+                        if (!isToday) {
+                            // Moved to future, cancel queue
+                            existingQueue.setStatus("CANCELLED");
+                            queueRepository.save(existingQueue);
+                        }
+                    } else if (isToday) {
+                        // Moved to today, create queue
+                        com.rajdhani.vqda.model.Queue queue = new com.rajdhani.vqda.model.Queue();
+                        queue.setAppointment(appointment);
+                        queue.setStatus("WAITING");
+                        queue.setPriorityLevel(appointment.getType());
+                        queue.setPriorityScore("Emergency".equalsIgnoreCase(appointment.getType()) ? 1 : 0);
+                        
+                        java.util.List<com.rajdhani.vqda.model.Queue> docQueue = queueRepository.findByAppointmentDoctorOrderByPriorityScoreDescQueueNumberAsc(appointment.getDoctor());
+                        int nextNum = docQueue.isEmpty() ? 1 : docQueue.get(docQueue.size() - 1).getQueueNumber() + 1;
+                        queue.setQueueNumber(nextNum);
+                        queue.setEstimatedWaitingTime(15 * nextNum);
+                        queueRepository.save(queue);
+                    }
+                    
+                    return "redirect:/patient/appointments?success=Rescheduled";
+                }
+            }
+        }
+        return "redirect:/patient/appointments?error=Failed";
+    }
+
+    @GetMapping("/profile")
+    public String profile(Model model, org.springframework.security.core.Authentication authentication) {
+        String email = authentication.getName();
+        com.rajdhani.vqda.model.User user = userRepository.findByEmail(email).orElse(null);
+        if (user != null) {
+            com.rajdhani.vqda.model.Patient patient = patientRepository.findByUser(user).orElse(null);
+            if (patient != null) {
+                model.addAttribute("patient", patient);
+                return "patient-profile";
+            }
+        }
+        return "redirect:/login";
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/profile/update")
+    public String updateProfile(
+            @org.springframework.web.bind.annotation.RequestParam("phone") String phone,
+            @org.springframework.web.bind.annotation.RequestParam("dob") String dobStr,
+            @org.springframework.web.bind.annotation.RequestParam("bloodGroup") String bloodGroup,
+            org.springframework.security.core.Authentication authentication) {
+        
+        String email = authentication.getName();
+        com.rajdhani.vqda.model.User user = userRepository.findByEmail(email).orElse(null);
+        if (user != null) {
+            com.rajdhani.vqda.model.Patient patient = patientRepository.findByUser(user).orElse(null);
+            if (patient != null) {
+                patient.setPhone(phone);
+                if (dobStr != null && !dobStr.isEmpty()) {
+                    patient.setDob(java.time.LocalDate.parse(dobStr));
+                }
+                patient.setBloodGroup(bloodGroup);
+                patientRepository.save(patient);
+            }
+        }
+        return "redirect:/patient/profile?success=updated";
     }
 }
