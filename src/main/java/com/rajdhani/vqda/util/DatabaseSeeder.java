@@ -3,6 +3,7 @@ package com.rajdhani.vqda.util;
 import com.rajdhani.vqda.model.*;
 import com.rajdhani.vqda.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -28,12 +29,34 @@ public class DatabaseSeeder implements CommandLineRunner {
     private PatientRepository patientRepository;
 
     @Autowired
+    private GmailIntegrationRepository gmailIntegrationRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Value("${google.oauth.client-id:}")
+    private String clientId;
+
+    @Value("${google.oauth.client-secret:}")
+    private String clientSecret;
 
     @Override
     public void run(String... args) throws Exception {
         if (roleRepository.count() == 0) {
             seedData();
+        }
+        seedGmailCredentials();
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void seedGmailCredentials() {
+        if (gmailIntegrationRepository.count() == 0 && clientId != null && !clientId.trim().isEmpty()) {
+            GmailIntegration integration = new GmailIntegration();
+            integration.setClientId(clientId.trim());
+            integration.setClientSecret(clientSecret.trim());
+            integration.setConnected(false);
+            integration.setStatus("DISCONNECTED");
+            gmailIntegrationRepository.save(integration);
         }
     }
 
@@ -64,7 +87,6 @@ public class DatabaseSeeder implements CommandLineRunner {
 
         for (int i = 0; i < 10; i++) {
             User doctorUser = new User();
-            // e.g., sanjay.thapa@rajdhanihealthline.com
             String email = firstNames[i].toLowerCase() + "." + lastNames[i].toLowerCase() + "@rajdhanihealthline.com";
             doctorUser.setEmail(email);
             doctorUser.setPassword(passwordEncoder.encode("doctor123"));
@@ -76,7 +98,7 @@ public class DatabaseSeeder implements CommandLineRunner {
             doctor.setLastName(lastNames[i]);
             doctor.setSpecialization(specializations[random.nextInt(specializations.length)]);
             doctor.setExperienceYears(random.nextInt(20) + 1);
-            doctor.setPhone("98" + (10000000 + random.nextInt(89999999))); // Nepali mobile number format
+            doctor.setPhone("98" + (10000000 + random.nextInt(89999999)));
             doctor.setAvailabilityStatus(true);
             doctorRepository.save(doctor);
         }
@@ -95,7 +117,6 @@ public class DatabaseSeeder implements CommandLineRunner {
             String firstName = (i == 0) ? "Aarav" : patientFirstNames[random.nextInt(patientFirstNames.length)];
             String lastName = (i == 0) ? "Sharma" : patientLastNames[random.nextInt(patientLastNames.length)];
             
-            // e.g. aarav.sharma1@gmail.com
             String email = firstName.toLowerCase() + "." + lastName.toLowerCase() + (i + 1) + "@gmail.com";
             
             patientUser.setEmail(email);
@@ -106,10 +127,9 @@ public class DatabaseSeeder implements CommandLineRunner {
             patient.setUser(patientUser);
             patient.setFirstName(firstName);
             patient.setLastName(lastName);
-            patient.setPhone("98" + (40000000 + random.nextInt(59999999))); // Nepali number
+            patient.setPhone("98" + (40000000 + random.nextInt(59999999)));
             patient.setDob(LocalDate.of(1960 + random.nextInt(50), 1 + random.nextInt(12), 1 + random.nextInt(28)));
             
-            // Guess gender based on index roughly
             boolean isFemale = Arrays.asList(patientFirstNames).indexOf(firstName) >= 20;
             patient.setGender(isFemale ? "Female" : "Male");
             
