@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments :: head('Admin - Gmail Integration')}"></head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen flex flex-col md:flex-row">
+
+    <!-- Sidebar -->
+    <aside class="w-full md:w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex-col hidden md:flex">
+        <div class="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-700">
+            <i class="bi bi-heart-pulse-fill text-primary text-xl mr-2"></i>
+            <span class="text-lg font-bold">VirtualQueue Admin</span>
+        </div>
+        <nav class="flex-grow py-4 px-3 space-y-1">
+            <a th:href="@{/admin/dashboard}" class="flex items-center px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors">
+                <i class="bi bi-grid-1x2-fill mr-3"></i> Dashboard
+            </a>
+            <a th:href="@{/admin/doctors}" class="flex items-center px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors">
+                <i class="bi bi-person-badge mr-3"></i> Manage Doctors
+            </a>
+            <a th:href="@{/admin/patients}" class="flex items-center px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors">
+                <i class="bi bi-people mr-3"></i> Manage Patients
+            </a>
+            <a th:href="@{/admin/appointments}" class="flex items-center px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors">
+                <i class="bi bi-calendar-check mr-3"></i> Appointments
+            </a>
+            <a th:href="@{/admin/queues}" class="flex items-center px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors">
+                <i class="bi bi-list-ol mr-3"></i> Live Queues
+            </a>
+            <a th:href="@{/admin/smtp}" class="flex items-center px-3 py-2 text-primary bg-primary/10 rounded-lg font-medium">
+                <i class="bi bi-google mr-3"></i> Gmail Integration
+            </a>
+        </nav>
+        <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="flex items-center w-full px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg font-medium transition-colors">
+                    <i class="bi bi-box-arrow-right mr-3"></i> Logout
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <header class="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 hidden md:flex items-center justify-between px-6">
+            <h1 class="text-xl font-semibold">Gmail Integration (Google API + OAuth 2.0)</h1>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold">
+                        A
+                    </div>
+                    <span class="ml-2 font-medium text-sm hidden sm:block">Admin Settings</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-4 md:p-6">
+            <div class="max-w-2xl mx-auto space-y-6">
+
+                <!-- Success / Error Feedback Alerts -->
+                <div th:if="${param.success == 'CredentialsSaved'}" class="p-4 bg-green-100 border border-green-200 text-green-800 rounded-xl text-sm font-semibold flex items-center shadow-sm">
+                    <i class="bi bi-check-circle-fill mr-2 text-lg"></i> ✓ Google OAuth Client ID & Secret saved successfully! You can now click Connect Gmail below.
+                </div>
+                <div th:if="${param.success == 'Connected'}" class="p-4 bg-green-100 border border-green-200 text-green-800 rounded-xl text-sm font-semibold flex items-center shadow-sm">
+                    <i class="bi bi-check-circle-fill mr-2 text-lg"></i> ✓ Gmail account connected successfully via Google OAuth 2.0!
+                </div>
+                <div th:if="${param.success == 'Disconnected'}" class="p-4 bg-gray-100 border border-gray-200 text-gray-800 rounded-xl text-sm font-semibold flex items-center shadow-sm">
+                    <i class="bi bi-info-circle-fill mr-2 text-lg"></i> Gmail account has been disconnected.
+                </div>
+                <div th:if="${param.success == 'TestEmailSent'}" class="p-4 bg-emerald-100 border border-emerald-200 text-emerald-800 rounded-xl text-sm font-semibold flex items-center shadow-sm">
+                    <i class="bi bi-envelope-check-fill mr-2 text-lg"></i> ✓ Test email sent successfully via Gmail API!
+                </div>
+                <div th:if="${param.error == 'MissingClientCredentials'}" class="p-4 bg-amber-100 border border-amber-200 text-amber-900 rounded-xl text-sm font-semibold shadow-sm">
+                    <div class="flex items-center">
+                        <i class="bi bi-exclamation-triangle-fill mr-2 text-lg text-amber-600"></i>
+                        <span>Missing Google OAuth Credentials!</span>
+                    </div>
+                    <p class="text-xs font-normal text-amber-800 mt-1">Please enter your Google Cloud OAuth Client ID & Client Secret in the form below, or set environment variables GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.</p>
+                </div>
+                <div th:if="${param.error != null and param.error != 'MissingClientCredentials'}" class="p-4 bg-red-100 border border-red-200 text-red-800 rounded-xl text-sm font-semibold flex items-center shadow-sm">
+                    <i class="bi bi-exclamation-triangle-fill mr-2 text-lg"></i> Error: <span th:text="${param.error}">OAuth error occurred</span>
+                </div>
+
+                <!-- Main Card: Gmail Integration Status & Authorization -->
+                <div class="card p-8 bg-white dark:bg-gray-800 shadow-lg rounded-2xl border border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center mb-6">
+                        <div class="w-12 h-12 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-600 flex items-center justify-center text-2xl mr-4 font-bold shadow-sm">
+                            <i class="bi bi-google"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Gmail Integration</h2>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Official Google Gmail API + OAuth 2.0 Authorization</p>
+                        </div>
+                    </div>
+
+                    <!-- 1. DISCONNECTED STATE -->
+                    <div th:if="${gmailIntegration == null or !gmailIntegration.connected}" class="space-y-6">
+                        <div class="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl">
+                            <h3 class="text-base font-bold text-blue-900 dark:text-blue-300">Connect your Gmail account</h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                                Connect a Google account to send automated OTPs, prescription emails, notifications, and other authorized emails from that Gmail address.
+                            </p>
+                        </div>
+
+                        <div class="flex items-center space-x-3 pt-2">
+                            <a th:href="@{/api/integrations/gmail/connect}" class="btn-primary py-3 px-6 text-sm font-semibold rounded-xl shadow-md flex items-center">
+                                <i class="bi bi-google mr-2"></i> Connect Gmail
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- 2. CONNECTED STATE -->
+                    <div th:if="${gmailIntegration != null and gmailIntegration.connected and gmailIntegration.status == 'CONNECTED'}" class="space-y-6">
+                        <div class="p-5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <span class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse mr-2"></span>
+                                    <h3 class="text-lg font-extrabold text-emerald-800 dark:text-emerald-300">✓ Gmail Connected</h3>
+                                </div>
+                                <span class="px-2.5 py-1 bg-emerald-200 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100 rounded-full text-xs font-semibold">Active</span>
+                            </div>
+                            
+                            <p class="text-base font-bold text-gray-900 dark:text-white mt-3" th:text="${gmailIntegration.email}">admin@example.com</p>
+                            <p class="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">Gmail API authorization active</p>
+
+                            <div class="mt-4 pt-3 border-t border-emerald-200/60 dark:border-emerald-800/60">
+                                <p class="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-1">Authorized for:</p>
+                                <ul class="text-xs text-gray-700 dark:text-gray-300 space-y-1">
+                                    <li>• OTP emails</li>
+                                    <li>• Prescription emails</li>
+                                    <li>• Notifications</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-3 pt-2">
+                            <button type="button" onclick="document.getElementById('testEmailModal').classList.remove('hidden')" class="btn-primary py-2.5 px-5 text-sm font-semibold rounded-xl shadow-md flex items-center">
+                                <i class="bi bi-send-fill mr-2"></i> Send Test Email
+                            </button>
+
+                            <form th:action="@{/api/integrations/gmail/disconnect}" method="post">
+                                <button type="submit" onclick="return confirm('Disconnect Gmail integration?');" class="px-5 py-2.5 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 rounded-xl transition-colors">
+                                    <i class="bi bi-trash mr-1"></i> Disconnect Gmail
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- 3. EXPIRED / ATTENTION REQUIRED STATE -->
+                    <div th:if="${gmailIntegration != null and !gmailIntegration.connected and gmailIntegration.status == 'EXPIRED'}" class="space-y-6">
+                        <div class="p-5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
+                            <div class="flex items-center">
+                                <i class="bi bi-exclamation-triangle-fill text-amber-600 text-xl mr-2"></i>
+                                <h3 class="text-lg font-bold text-amber-800 dark:text-amber-300">⚠ Gmail authorization requires attention</h3>
+                            </div>
+                            <p class="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-2" th:text="${gmailIntegration.email}">admin@example.com</p>
+                            <p class="text-xs text-gray-500 mt-1">Google OAuth refresh token has expired or been revoked. Please reconnect your Gmail account.</p>
+                        </div>
+
+                        <div class="pt-2">
+                            <a th:href="@{/api/integrations/gmail/connect}" class="btn-primary py-3 px-6 text-sm font-semibold rounded-xl shadow-md inline-flex items-center">
+                                <i class="bi bi-arrow-repeat mr-2"></i> Reconnect Gmail
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Secondary Card: Google OAuth Client Application Credentials Setup -->
+                <div class="card p-6 bg-white dark:bg-gray-800 shadow rounded-xl border border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-base font-bold text-gray-900 dark:text-white">
+                            <i class="bi bi-shield-lock mr-2 text-primary"></i> Google OAuth Application Credentials Setup
+                        </h3>
+                        <span class="text-xs px-2.5 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full font-mono">OAuth Client App</span>
+                    </div>
+
+                    <form th:action="@{/api/integrations/gmail/save-credentials}" method="post" class="space-y-4">
+                        <div>
+                            <label for="clientId" class="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">Google OAuth Client ID</label>
+                            <input type="text" id="clientId" name="clientId" 
+                                   th:value="${gmailIntegration != null ? gmailIntegration.clientId : ''}"
+                                   required
+                                   class="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-mono dark:bg-gray-700 dark:text-white" 
+                                   placeholder="xxxxxxxxx.apps.googleusercontent.com">
+                        </div>
+
+                        <div>
+                            <label for="clientSecret" class="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">Google OAuth Client Secret</label>
+                            <input type="password" id="clientSecret" name="clientSecret" 
+                                   required
+                                   class="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-mono dark:bg-gray-700 dark:text-white" 
+                                   placeholder="GOCSPX-xxxxxxxxxxxxxxxx">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Authorized Redirect URI (Add to Google Cloud Console)</label>
+                            <input type="text" readonly value="http://localhost:8080/api/integrations/gmail/callback" 
+                                   class="w-full p-2 border border-gray-200 dark:border-gray-700 rounded-lg text-xs font-mono bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400">
+                        </div>
+
+                        <div class="pt-2 flex justify-end">
+                            <button type="submit" class="btn-primary py-2 px-5 font-semibold text-xs rounded-xl shadow">
+                                <i class="bi bi-save mr-1"></i> Save OAuth Client Credentials
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Send Test Email Modal -->
+    <div id="testEmailModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-200 dark:border-gray-700">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Gmail Test</h3>
+                <button type="button" onclick="document.getElementById('testEmailModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <form th:action="@{/api/integrations/gmail/test}" method="post" class="space-y-4">
+                <div>
+                    <label for="toEmail" class="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">Send a test email to:</label>
+                    <input type="email" id="toEmail" name="toEmail" required
+                           class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-white" placeholder="email@example.com">
+                </div>
+                <div class="pt-2 flex justify-end space-x-2">
+                    <button type="button" onclick="document.getElementById('testEmailModal').classList.add('hidden')" class="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 rounded-lg">Cancel</button>
+                    <button type="submit" class="btn-primary py-2 px-5 text-sm font-semibold rounded-xl">Send Test Email</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>

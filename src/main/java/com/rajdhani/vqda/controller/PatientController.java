@@ -21,6 +21,9 @@ public class PatientController {
     @Autowired
     private com.rajdhani.vqda.repository.UserRepository userRepository;
 
+    @Autowired
+    private com.rajdhani.vqda.repository.PrescriptionRepository prescriptionRepository;
+
     @GetMapping("/dashboard")
     public String dashboard(Model model, org.springframework.security.core.Authentication authentication) {
         String email = authentication.getName();
@@ -28,27 +31,50 @@ public class PatientController {
         if (user != null) {
             com.rajdhani.vqda.model.Patient patient = patientRepository.findByUser(user).orElse(null);
             if (patient != null) {
-                // Get patient's name
+                model.addAttribute("patient", patient);
                 model.addAttribute("patientName", patient.getFirstName());
                 
-                // Get next appointment
+                // Get all patient appointments
                 java.util.List<com.rajdhani.vqda.model.Appointment> apps = appointmentRepository.findByPatientOrderByAppointmentDateDesc(patient);
+                model.addAttribute("totalAppointments", apps.size());
+                
+                long completedCount = apps.stream().filter(a -> "COMPLETED".equalsIgnoreCase(a.getStatus())).count();
+                model.addAttribute("completedAppointments", completedCount);
+                
+                // Get prescriptions for patient
+                java.util.List<com.rajdhani.vqda.model.Prescription> prescriptions = prescriptionRepository.findByPatientOrderByCreatedAtDesc(patient);
+                model.addAttribute("prescriptionsCount", prescriptions.size());
+                model.addAttribute("recentPrescriptions", prescriptions.stream().limit(3).collect(java.util.stream.Collectors.toList()));
+                
+                model.addAttribute("recentAppointments", apps.stream().limit(5).collect(java.util.stream.Collectors.toList()));
+                
                 if (!apps.isEmpty()) {
-                    model.addAttribute("upcomingApp", apps.get(0));
+                    com.rajdhani.vqda.model.Appointment upcoming = apps.stream()
+                            .filter(a -> !"CANCELLED".equalsIgnoreCase(a.getStatus()) && !"COMPLETED".equalsIgnoreCase(a.getStatus()))
+                            .findFirst().orElse(null);
                     
-                    // See if they are in queue for this doc today
-                    com.rajdhani.vqda.model.Queue q = queueRepository.findFirstByAppointmentDoctorAndStatusOrderByPriorityScoreDescQueueNumberAsc(apps.get(0).getDoctor(), "WAITING").orElse(null);
-                    if (q != null) {
-                        model.addAttribute("queuePosition", q.getQueueNumber());
-                        model.addAttribute("doctorName", "Dr. " + apps.get(0).getDoctor().getLastName());
-                        model.addAttribute("specialization", apps.get(0).getDoctor().getSpecialization());
+                    if (upcoming != null) {
+                        model.addAttribute("upcomingApp", upcoming);
+                        com.rajdhani.vqda.model.Queue q = queueRepository.findFirstByAppointmentDoctorAndStatusOrderByPriorityScoreDescQueueNumberAsc(upcoming.getDoctor(), "WAITING").orElse(null);
+                        if (q != null) {
+                            model.addAttribute("queuePosition", q.getQueueNumber());
+                            model.addAttribute("doctorName", "Dr. " + upcoming.getDoctor().getFirstName() + " " + upcoming.getDoctor().getLastName());
+                            model.addAttribute("specialization", upcoming.getDoctor().getSpecialization());
+                        } else {
+                            model.addAttribute("queuePosition", null);
+                        }
                     } else {
+                        model.addAttribute("upcomingApp", null);
                         model.addAttribute("queuePosition", null);
                     }
                 } else {
                     model.addAttribute("upcomingApp", null);
                     model.addAttribute("queuePosition", null);
                 }
+                
+                // Available doctors preview
+                java.util.List<com.rajdhani.vqda.model.Doctor> doctors = doctorRepository.findAll();
+                model.addAttribute("topDoctors", doctors.stream().limit(4).collect(java.util.stream.Collectors.toList()));
             }
         }
         return "patient-dashboard";
@@ -274,5 +300,40 @@ public class PatientController {
             }
         }
         return "redirect:/patient/profile?success=updated";
+    }
+
+    @GetMapping("/appointment/{id}/prescription")
+    public String viewPrescription(@org.springframework.web.bind.annotation.PathVariable Long id, Model model, org.springframework.security.core.Authentication authentication) {
+        String email = authentication.getName();
+        com.rajdhani.vqda.model.User user = userRepository.findByEmail(email).orElse(null);
+        if (user != null) {
+            com.rajdhani.vqda.model.Patient patient = patientRepository.findByUser(user).orElse(null);
+            if (patient != null) {
+                com.rajdhani.vqda.model.Appointment appointment = appointmentRepository.findById(id).orElse(null);
+                if (appointment != null && appointment.getPatient().getId().equals(patient.getId())) {
+                    model.addAttribute("patientName", patient.getFirstName());
+                    model.addAttribute("appointment", appointment);
+                    com.rajdhani.vqda.model.Prescription prescription = prescriptionRepository.findByAppointment(appointment).orElse(null);
+                    model.addAttribute("prescription", prescription);
+                    return "patient-prescription";
+                }
+            }
+        }
+        return "redirect:/patient/appointments?error=PrescriptionNotFound";
+    }
+
+    @GetMapping("/prescriptions")
+    public String listPrescriptions(Model model, org.springframework.security.core.Authentication authentication) {
+        String email = authentication.getName();
+        com.rajdhani.vqda.model.User user = userRepository.findByEmail(email).orElse(null);
+        if (user != null) {
+            com.rajdhani.vqda.model.Patient patient = patientRepository.findByUser(user).orElse(null);
+            if (patient != null) {
+                model.addAttribute("patientName", patient.getFirstName());
+                model.addAttribute("prescriptions", prescriptionRepository.findByPatientOrderByCreatedAtDesc(patient));
+                return "patient-prescriptions";
+            }
+        }
+        return "redirect:/login";
     }
 }

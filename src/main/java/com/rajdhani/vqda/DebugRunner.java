@@ -20,6 +20,7 @@ public class DebugRunner implements CommandLineRunner {
     private QueueRepository queueRepository;
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public void run(String... args) throws Exception {
         System.out.println("====== APPOINTMENTS IN DB ======");
         List<Appointment> apps = appointmentRepository.findAll();

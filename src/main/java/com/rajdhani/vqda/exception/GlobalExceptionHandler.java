@@ -16,6 +16,9 @@ public class GlobalExceptionHandler {
         return "500"; // Will return 500.html template
     }
 
-    // Spring Boot automatically handles 404 with error mapping if templates/error/404.html is present,
-    // or we can implement ErrorController for finer control. We will use the templates/error folder approach.
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public String handleMaxUploadSizeExceeded(org.springframework.web.multipart.MaxUploadSizeExceededException ex, Model model) {
+        model.addAttribute("errorMsg", "File upload size exceeded. Please select a valid prescription image file.");
+        return "500";
+    }
 }

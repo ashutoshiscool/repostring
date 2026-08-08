@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-start.ps1 - Virtual Queue Application Startup Script (Goated Edition)
+start.ps1 - Virtual Queue Application Startup Script
 
 .DESCRIPTION
 This script ensures Java 21, Maven, and MySQL are installed before running the Spring Boot application on Windows. 
@@ -155,16 +155,16 @@ if ($counter -ge $timeout) {
 }
 
 Write-Host "`n=======================================================" -ForegroundColor Cyan
-Write-Host "🚀 APPLICATION IS NOW LIVE!" -ForegroundColor Green
-Write-Host "🌐 Access it at: http://localhost:8080" -ForegroundColor Green
+Write-Host "APPLICATION IS NOW LIVE!" -ForegroundColor Green
+Write-Host "Access it at: http://localhost:8080" -ForegroundColor Green
 Write-Host ""
 Write-Host "Test Accounts:" -ForegroundColor Cyan
 Write-Host "  - Admin:   admin@hospital.com / admin123"
 Write-Host "  - Doctor:  sanjay.thapa@rajdhanihealthline.com / doctor123"
 Write-Host "  - Patient: [firstname].[lastname]1@gmail.com / patient123 (e.g. aarav.sharma1@gmail.com)"
 Write-Host "=======================================================" -ForegroundColor Cyan
-Write-Host "✅ Application is running in the background." -ForegroundColor Green
-Write-Host "ℹ️ You can now safely close this terminal." -ForegroundColor Cyan
-Write-Host "🛑 To stop the server later, run: .\stop.ps1`n" -ForegroundColor Yellow
+Write-Host "Application is running in the background." -ForegroundColor Green
+Write-Host "You can now safely close this terminal." -ForegroundColor Cyan
+Write-Host "To stop the server later, run: .\stop.ps1`n" -ForegroundColor Yellow
 
 Pause-Exit

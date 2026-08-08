@@ -39,8 +39,8 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
-                .requestMatchers("/", "/register", "/login", "/h2-console/**", "/about", "/contact").permitAll()
-                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers("/", "/register", "/verify-otp", "/forgot-password", "/reset-password", "/login", "/h2-console/**", "/about", "/contact", "/api/integrations/gmail/callback").permitAll()
+                .requestMatchers("/admin/**", "/api/integrations/gmail/**").hasRole("ADMIN")
                 .requestMatchers("/doctor/**").hasRole("DOCTOR")
                 .requestMatchers("/patient/**").hasRole("PATIENT")
                 .anyRequest().authenticated()

@@ -22,6 +22,12 @@ public class DoctorController {
     @Autowired
     private com.rajdhani.vqda.repository.UserRepository userRepository;
 
+    @Autowired
+    private com.rajdhani.vqda.repository.PrescriptionRepository prescriptionRepository;
+
+    @Autowired
+    private com.rajdhani.vqda.service.EmailService emailService;
+
     @GetMapping("/dashboard")
     public String dashboard(Model model, org.springframework.security.core.Authentication authentication) {
         String email = authentication.getName();
@@ -205,5 +211,93 @@ public class DoctorController {
             }
         }
         return "redirect:/doctor/queue?error=Failed";
+    }
+
+    @GetMapping("/appointment/{appointmentId}/prescription")
+    public String prescriptionForm(@org.springframework.web.bind.annotation.PathVariable Long appointmentId, Model model, org.springframework.security.core.Authentication authentication) {
+        String email = authentication.getName();
+        com.rajdhani.vqda.model.User user = userRepository.findByEmail(email).orElse(null);
+        if (user != null) {
+            com.rajdhani.vqda.model.Doctor doctor = doctorRepository.findByUser(user).orElse(null);
+            if (doctor != null) {
+                com.rajdhani.vqda.model.Appointment appointment = appointmentRepository.findById(appointmentId).orElse(null);
+                if (appointment != null && appointment.getDoctor().getId().equals(doctor.getId())) {
+                    model.addAttribute("appointment", appointment);
+                    com.rajdhani.vqda.model.Prescription prescription = prescriptionRepository.findByAppointment(appointment).orElse(new com.rajdhani.vqda.model.Prescription());
+                    model.addAttribute("prescription", prescription);
+                    return "doctor-prescription";
+                }
+            }
+        }
+        return "redirect:/doctor/queue";
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/appointment/{appointmentId}/prescription")
+    public String submitPrescription(
+            @org.springframework.web.bind.annotation.PathVariable Long appointmentId,
+            @org.springframework.web.bind.annotation.RequestParam(value = "notes", required = false) String notes,
+            @org.springframework.web.bind.annotation.RequestParam(value = "image", required = false) org.springframework.web.multipart.MultipartFile image,
+            org.springframework.security.core.Authentication authentication) {
+
+        String email = authentication.getName();
+        com.rajdhani.vqda.model.User user = userRepository.findByEmail(email).orElse(null);
+        if (user != null) {
+            com.rajdhani.vqda.model.Doctor doctor = doctorRepository.findByUser(user).orElse(null);
+            if (doctor != null) {
+                com.rajdhani.vqda.model.Appointment appointment = appointmentRepository.findById(appointmentId).orElse(null);
+                if (appointment != null && appointment.getDoctor().getId().equals(doctor.getId())) {
+                    com.rajdhani.vqda.model.Prescription prescription = prescriptionRepository.findByAppointment(appointment)
+                            .orElse(new com.rajdhani.vqda.model.Prescription());
+                    prescription.setAppointment(appointment);
+                    prescription.setDoctor(doctor);
+                    prescription.setPatient(appointment.getPatient());
+                    prescription.setNotes(notes);
+
+                    if (image != null && !image.isEmpty()) {
+                        try {
+                            String uploadDir = "./uploads/prescriptions/";
+                            java.io.File dir = new java.io.File(uploadDir);
+                            if (!dir.exists()) dir.mkdirs();
+
+                            String originalFilename = image.getOriginalFilename();
+                            String ext = "";
+                            if (originalFilename != null && originalFilename.contains(".")) {
+                                ext = originalFilename.substring(originalFilename.lastIndexOf("."));
+                            }
+                            String filename = java.util.UUID.randomUUID().toString() + ext;
+                            java.nio.file.Path filePath = java.nio.file.Paths.get(uploadDir, filename);
+                            java.nio.file.Files.copy(image.getInputStream(), filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                            prescription.setImagePath("/uploads/prescriptions/" + filename);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                    prescriptionRepository.save(prescription);
+
+                    // Send email notification to patient
+                    try {
+                        com.rajdhani.vqda.model.Patient p = appointment.getPatient();
+                        if (p != null && p.getUser() != null && p.getUser().getEmail() != null) {
+                            emailService.sendPrescriptionEmail(
+                                    p.getUser().getEmail(),
+                                    p.getFullName(),
+                                    doctor.getFullName(),
+                                    doctor.getSpecialization(),
+                                    appointment.getAppointmentDate().toString(),
+                                    appointment.getTimeSlot().toString(),
+                                    prescription.getNotes(),
+                                    prescription.getImagePath()
+                            );
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+
+                    return "redirect:/doctor/queue?success=PrescriptionSaved";
+                }
+            }
+        }
+        return "redirect:/doctor/queue?error=PrescriptionFailed";
     }
 }

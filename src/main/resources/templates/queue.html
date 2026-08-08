@@ -101,6 +101,9 @@
                                     <span th:if="${q.status == 'CANCELLED'}" class="px-2 py-1 bg-red-100 text-red-700 rounded-md text-xs font-medium border border-red-200">Cancelled</span>
                                 </td>
                                 <td class="py-4 text-right flex justify-end space-x-2">
+                                    <a th:href="@{/doctor/appointment/{id}/prescription(id=${q.appointment.id})}" class="text-xs px-2 py-1 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded flex items-center" title="Attach/View Prescription">
+                                        <i class="bi bi-file-earmark-medical mr-1"></i>Prescription
+                                    </a>
                                     <form th:if="${q.status == 'WAITING'}" th:action="@{/doctor/queue/{id}/status(id=${q.id},status='IN_PROGRESS')}" method="post">
                                         <button type="submit" class="text-xs px-2 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded">Start</button>
                                     </form>
