@@ -2,7 +2,7 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:fragment="head(title)">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title th:text="${title} + ' | Virtual Queue'">Virtual Queue</title>
     <!-- Tailwind CSS (CDN for simplicity) -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -12,8 +12,8 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: '#4F46E5',
-                        'primary-hover': '#4338CA',
+                        primary: '#2563eb',
+                        'primary-hover': '#1d4ed8',
                     }
                 }
             }
@@ -31,7 +31,7 @@
     <script th:src="@{/js/table-search.js}" defer></script>
     <!-- Toastify JS -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
-    <!-- Notifications Script -->
+    <!-- Notifications & Mobile Drawer Script -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -39,50 +39,156 @@
                 let msg = urlParams.get('success');
                 if (msg === 'deleted') msg = 'Successfully deleted record.';
                 if (msg === 'availability_updated') msg = 'Availability updated successfully.';
+                if (msg === 'DoctorAdded') msg = 'Doctor profile created successfully!';
+                if (msg === 'PatientAdded') msg = 'Patient profile created successfully!';
+                if (msg === 'Booked') msg = 'Appointment scheduled successfully!';
+                if (msg === 'Connected') msg = 'Gmail account connected via OAuth 2.0!';
                 Toastify({
                     text: msg || "Success!",
-                    duration: 3000,
+                    duration: 3500,
                     close: true,
                     gravity: "top", 
                     position: "right",
-                    style: { background: "linear-gradient(to right, #00b09b, #96c93d)" }
+                    style: { background: "linear-gradient(to right, #10b981, #059669)" }
                 }).showToast();
             }
             if (urlParams.has('error')) {
+                let err = urlParams.get('error');
+                if (err === 'MissingClientCredentials') err = 'Missing Google OAuth Client ID & Secret! Enter them below.';
                 Toastify({
-                    text: urlParams.get('error') || "An error occurred.",
-                    duration: 3000,
+                    text: err || "An error occurred.",
+                    duration: 4000,
                     close: true,
                     gravity: "top", 
                     position: "right",
-                    style: { background: "linear-gradient(to right, #ff5f6d, #ffc371)" }
+                    style: { background: "linear-gradient(to right, #ef4444, #dc2626)" }
                 }).showToast();
             }
         });
+
+        function toggleMobileMenu() {
+            const drawer = document.getElementById('mobileNavDrawer');
+            const overlay = document.getElementById('mobileNavOverlay');
+            if (drawer && overlay) {
+                if (drawer.classList.contains('-translate-x-full')) {
+                    drawer.classList.remove('-translate-x-full');
+                    overlay.classList.remove('hidden');
+                } else {
+                    drawer.classList.add('-translate-x-full');
+                    overlay.classList.add('hidden');
+                }
+            }
+        }
     </script>
 </head>
 <body>
-    <nav th:fragment="navbar" class="glass-panel sticky top-0 z-50 px-6 py-4 flex justify-between items-center">
+
+    <!-- Public / Simple Navbar Fragment -->
+    <nav th:fragment="navbar" class="glass-panel sticky top-0 z-40 px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center shadow-sm">
         <div class="flex items-center space-x-2">
-            <i class="bi bi-heart-pulse-fill text-primary text-2xl"></i>
-            <span class="text-xl font-bold tracking-tight">VirtualQueue</span>
-        </div>
-        <div class="flex items-center space-x-4">
-            <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                <i class="bi bi-moon"></i>
-            </button>
-            <div th:if="${#authorization.expression('isAuthenticated()')}">
-                <a th:href="@{/dashboard}" class="btn-primary text-sm">Dashboard</a>
-                <a th:href="@{/logout}" class="ml-2 text-sm text-red-500 hover:text-red-700 font-medium">Logout</a>
+            <div class="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center font-bold text-lg shadow">
+                <i class="bi bi-heart-pulse-fill"></i>
             </div>
-            <div th:unless="${#authorization.expression('isAuthenticated()')}">
-                <a th:href="@{/login}" class="text-sm font-medium mr-4">Login</a>
-                <a th:href="@{/register}" class="btn-primary text-sm">Sign Up</a>
+            <span class="text-lg sm:text-xl font-extrabold tracking-tight text-gray-900 dark:text-white">VirtualQueue</span>
+        </div>
+        <div class="flex items-center space-x-2 sm:space-x-4">
+            <button id="theme-toggle" class="p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <i class="bi bi-moon text-lg"></i>
+            </button>
+            <div th:if="${#authorization.expression('isAuthenticated()')}" class="flex items-center space-x-2">
+                <a th:href="@{/dashboard}" class="btn-primary text-xs sm:text-sm py-2 px-3 sm:px-4 rounded-xl font-semibold">Dashboard</a>
+                <form th:action="@{/logout}" method="post" class="inline">
+                    <button type="submit" class="text-xs sm:text-sm text-red-600 hover:text-red-800 font-semibold px-2 py-1">Logout</button>
+                </form>
+            </div>
+            <div th:unless="${#authorization.expression('isAuthenticated()')}" class="flex items-center space-x-2">
+                <a th:href="@{/login}" class="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 px-3 py-2 hover:text-primary">Login</a>
+                <a th:href="@{/register}" class="btn-primary text-xs sm:text-sm py-2 px-3 sm:px-4 rounded-xl font-semibold">Sign Up</a>
             </div>
         </div>
     </nav>
 
-    <footer th:fragment="footer" class="py-8 text-center text-sm text-gray-500 dark:text-gray-400 mt-auto border-t border-gray-200 dark:border-gray-800">
+    <!-- Admin Header & Mobile Responsive Navigation Fragment -->
+    <header th:fragment="adminHeader(title, activePage)" class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
+        <!-- Top bar for Mobile & Desktop -->
+        <div class="flex items-center justify-between h-16 px-4 md:px-6">
+            <div class="flex items-center space-x-3">
+                <button type="button" onclick="toggleMobileMenu()" class="md:hidden p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none">
+                    <i class="bi bi-list text-2xl"></i>
+                </button>
+                <div class="flex items-center space-x-2 md:hidden">
+                    <i class="bi bi-heart-pulse-fill text-primary text-xl"></i>
+                    <span class="font-bold text-base text-gray-900 dark:text-white">VirtualQueue</span>
+                </div>
+                <h1 class="hidden md:block text-lg font-bold text-gray-900 dark:text-white" th:text="${title}">Admin Dashboard</h1>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <button id="theme-toggle" class="p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <i class="bi bi-moon text-lg"></i>
+                </button>
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm shadow">
+                        A
+                    </div>
+                    <span class="ml-2 font-semibold text-xs sm:text-sm hidden sm:block text-gray-700 dark:text-gray-200">Admin</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Nav Drawer Overlay -->
+        <div id="mobileNavOverlay" onclick="toggleMobileMenu()" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden transition-opacity"></div>
+
+        <!-- Mobile Nav Slide-over Drawer -->
+        <aside id="mobileNavDrawer" class="fixed top-0 left-0 bottom-0 w-72 bg-white dark:bg-gray-800 z-50 transform -translate-x-full transition-transform duration-300 ease-in-out md:hidden flex flex-col shadow-2xl">
+            <div class="h-16 flex items-center justify-between px-5 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center space-x-2">
+                    <i class="bi bi-heart-pulse-fill text-primary text-xl"></i>
+                    <span class="font-extrabold text-base text-gray-900 dark:text-white">VirtualQueue Admin</span>
+                </div>
+                <button type="button" onclick="toggleMobileMenu()" class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <i class="bi bi-x-lg text-lg"></i>
+                </button>
+            </div>
+
+            <nav class="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+                <a th:href="@{/admin/dashboard}" 
+                   th:class="${activePage == 'dashboard' ? 'flex items-center px-3 py-2.5 text-primary bg-primary/10 rounded-xl font-bold text-sm' : 'flex items-center px-3 py-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-medium text-sm transition-colors'}">
+                    <i class="bi bi-grid-1x2-fill mr-3"></i> Dashboard
+                </a>
+                <a th:href="@{/admin/doctors}" 
+                   th:class="${activePage == 'doctors' ? 'flex items-center px-3 py-2.5 text-primary bg-primary/10 rounded-xl font-bold text-sm' : 'flex items-center px-3 py-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-medium text-sm transition-colors'}">
+                    <i class="bi bi-person-badge mr-3"></i> Manage Doctors
+                </a>
+                <a th:href="@{/admin/patients}" 
+                   th:class="${activePage == 'patients' ? 'flex items-center px-3 py-2.5 text-primary bg-primary/10 rounded-xl font-bold text-sm' : 'flex items-center px-3 py-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-medium text-sm transition-colors'}">
+                    <i class="bi bi-people mr-3"></i> Manage Patients
+                </a>
+                <a th:href="@{/admin/appointments}" 
+                   th:class="${activePage == 'appointments' ? 'flex items-center px-3 py-2.5 text-primary bg-primary/10 rounded-xl font-bold text-sm' : 'flex items-center px-3 py-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-medium text-sm transition-colors'}">
+                    <i class="bi bi-calendar-check mr-3"></i> Appointments
+                </a>
+                <a th:href="@{/admin/queues}" 
+                   th:class="${activePage == 'queues' ? 'flex items-center px-3 py-2.5 text-primary bg-primary/10 rounded-xl font-bold text-sm' : 'flex items-center px-3 py-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-medium text-sm transition-colors'}">
+                    <i class="bi bi-list-ol mr-3"></i> Live Queues
+                </a>
+                <a th:href="@{/admin/smtp}" 
+                   th:class="${activePage == 'smtp' ? 'flex items-center px-3 py-2.5 text-primary bg-primary/10 rounded-xl font-bold text-sm' : 'flex items-center px-3 py-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-medium text-sm transition-colors'}">
+                    <i class="bi bi-google mr-3"></i> Gmail Integration
+                </a>
+            </nav>
+
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                <form th:action="@{/logout}" method="post">
+                    <button type="submit" class="flex items-center w-full px-3 py-2.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-semibold text-sm transition-colors">
+                        <i class="bi bi-box-arrow-right mr-3"></i> Logout
+                    </button>
+                </form>
+            </div>
+        </aside>
+    </header>
+
+    <footer th:fragment="footer" class="py-6 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-auto border-t border-gray-200 dark:border-gray-800">
         <p>&copy; 2026 Virtual Queue Management System. All rights reserved.</p>
     </footer>
 </body>
