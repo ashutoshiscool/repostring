@@ -1,12 +1,4 @@
 # Hospital Virtual Appointment Booking & Queue Management System
-
-**Degree:** Bachelor of Computer System and Information Technology (BCSIT)  
-**University:** Pokhara University  
-**College:** Rajdhani Model College  
-**Student Name:** Aayushma Joshi  
-**Roll No.:** 24080602  
-**Academic Year:** 2026/20  
-
 ---
 
 ## 📌 Project Overview
